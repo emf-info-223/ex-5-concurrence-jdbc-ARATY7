@@ -4,6 +4,8 @@ import app.beans.Personne;
 import app.exceptions.MyDBException;
 import app.helpers.SystemLib;
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -86,14 +88,14 @@ public class DbWorker implements DbWorkerItf {
                     String ville = rs.getString("Ville");
                     boolean actif = rs.getByte("Actif") == 1;
                     Double salaire = rs.getDouble("Salaire");
-                    java.util.Date dateModif = new java.util.Date(rs.getDate("date_modif").getTime());
+                    java.util.Date dateModif = rs.getTimestamp("date_modif");   
                     listePersonnes.add(new Personne(pk, nom, prenom, dateNaissance, noRue, rue, NPA, ville, actif, salaire, dateModif));
                 } catch (SQLException ex) {
                     throw new MyDBException(SystemLib.getFullMethodName(), ex.getMessage());
                 }
             }
         } catch (SQLException ex) {
-             throw new MyDBException(SystemLib.getFullMethodName(), ex.getMessage());
+            throw new MyDBException(SystemLib.getFullMethodName(), ex.getMessage());
         }
         return listePersonnes;
     }
@@ -101,6 +103,7 @@ public class DbWorker implements DbWorkerItf {
     @Override
     public void creer(Personne p) throws MyDBException {
         try {
+
             PreparedStatement st
                     = dbConnexion.prepareStatement(
                             "INSERT INTO t_personne(Prenom, Nom, Date_naissance, No_rue, Rue, NPA, Ville, Actif, Salaire, date_modif) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -115,12 +118,14 @@ public class DbWorker implements DbWorkerItf {
             st.setString(7, p.getLocalite());
             st.setByte(8, p.isActif() ? (byte) 1 : (byte) 0);
             st.setDouble(9, p.getSalaire());
-            st.setTimestamp(10, new Timestamp(p.getDateModif().getTime()));
+            st.setTimestamp(10, Timestamp.valueOf(LocalDateTime.now()));
 
             int nb = st.executeUpdate();
 
             if (nb != 1) {
-                 throw new MyDBException(SystemLib.getFullMethodName(), "Erreur d'insert");
+                throw new MyDBException(SystemLib.getFullMethodName(), "Erreur d'insert");
+            } else {
+                System.out.println("Personne créée avec succès");
             }
 
         } catch (SQLException | NullPointerException ex) {
@@ -131,9 +136,9 @@ public class DbWorker implements DbWorkerItf {
 
     @Override
     public Personne lire(int PK) throws MyDBException {
-        
+
         Personne p = null;
-        
+
         try {
             Statement st = dbConnexion.createStatement();
             ResultSet rs = st.executeQuery("SELECT PK_PERS, Prenom, Nom, Date_naissance, No_rue, Rue, NPA, Ville, Actif, Salaire, date_modif, no_modif from t_personne WHERE PK_PERS=" + PK);
@@ -164,33 +169,67 @@ public class DbWorker implements DbWorkerItf {
         return p;
     }
 
+    private Date selectForUpdate(int pk) throws MyDBException {
+        Date d = null;
+        try {
+            Statement st = dbConnexion.createStatement();
+            ResultSet rs = st.executeQuery("SELECT date_modif from t_personne WHERE PK_PERS=" + pk + " for update");
+
+            while (rs.next()) {
+                d = new Date(rs.getTimestamp("date_modif").getTime());
+            }
+            rs.close();
+            st.close();
+        } catch (SQLException | NullPointerException ex) {
+            throw new MyDBException(SystemLib.getFullMethodName(), ex.getMessage());
+        }
+        return d;
+    }
+
     @Override
     public void modifier(Personne p) throws MyDBException {
         try {
-            PreparedStatement ps
-                    = dbConnexion.prepareStatement(
-                            "UPDATE t_personne SET Prenom=?, Nom=?, Date_naissance=?, No_rue=?, Rue=?, NPA=?, Ville=?, Actif=?, Salaire=?, date_modif=? where PK_PERS=?"
-                    );
 
-            ps.setString(1, p.getPrenom());
-            ps.setString(2, p.getNom());
-            ps.setDate(3, new java.sql.Date(p.getDateNaissance().getTime()));
-            ps.setInt(4, p.getNoRue());
-            ps.setString(5, p.getRue());
-            ps.setInt(6, p.getNpa());
-            ps.setString(7, p.getLocalite());
-            ps.setByte(8, p.isActif() ? (byte) 1 : (byte) 0);
-            ps.setDouble(9, p.getSalaire());
-            ps.setTimestamp(10, new Timestamp(p.getDateModif().getTime()));
-            ps.setInt(11, p.getPkPers());
+            dbConnexion.setAutoCommit(false);
+            Date date = selectForUpdate(p.getPkPers());
 
-            int nb = ps.executeUpdate();
+            System.out.println(date);
+            System.out.println(date.getTime());
+            System.out.println(p.getDateModif());
+            System.out.println(p.getDateModif().getTime());
+//            Date dateRecu = new Date(p.getDateModif().getTime());
 
-            if (nb != 1) {
-                throw new MyDBException(SystemLib.getFullMethodName(), "Erreur de mise à jour");
+            if (date.getTime() == p.getDateModif().getTime()) {
+
+                PreparedStatement ps
+                        = dbConnexion.prepareStatement(
+                                "UPDATE t_personne SET Prenom=?, Nom=?, Date_naissance=?, No_rue=?, Rue=?, NPA=?, Ville=?, Actif=?, Salaire=?, date_modif=? where PK_PERS=?"
+                        );
+
+                ps.setString(1, p.getPrenom());
+                ps.setString(2, p.getNom());
+                ps.setDate(3, new java.sql.Date(p.getDateNaissance().getTime()));
+                ps.setInt(4, p.getNoRue());
+                ps.setString(5, p.getRue());
+                ps.setInt(6, p.getNpa());
+                ps.setString(7, p.getLocalite());
+                ps.setByte(8, p.isActif() ? (byte) 1 : (byte) 0);
+                ps.setDouble(9, p.getSalaire());
+                ps.setTimestamp(10, new Timestamp(p.getDateModif().getTime()));
+                ps.setInt(11, p.getPkPers());
+                int nb = ps.executeUpdate();
+
+                if (nb != 1) {
+                    throw new MyDBException(SystemLib.getFullMethodName(), "Erreur de mise à jour");
+                } else {
+                    System.out.println("Personne modifiée avec succès");
+                    dbConnexion.commit();
+                }
             } else {
-                System.out.println("Personne modifiée avec succès");
+                dbConnexion.rollback();
             }
+            dbConnexion.setAutoCommit(true);
+
         } catch (SQLException | NullPointerException ex) {
             throw new MyDBException(SystemLib.getFullMethodName(), ex.getMessage());
         }

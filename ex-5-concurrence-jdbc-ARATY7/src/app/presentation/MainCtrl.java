@@ -167,7 +167,6 @@ public class MainCtrl implements Initializable {
     @FXML
     private void sauverPersonne(ActionEvent event) {
 
-        int pk = Integer.valueOf(txtPK.getText());
         String nom = txtNom.getText();
         String prenom = txtPrenom.getText();
         Date dateNai = java.sql.Date.valueOf(dateNaissance.getValue());
@@ -177,12 +176,21 @@ public class MainCtrl implements Initializable {
         String localite = txtLocalite.getText();
         boolean actif = ckbActif.isSelected();
         double salaire = Double.valueOf(txtSalaire.getText());
-        Date date = new Date();
 
         if (modeAjout) {
 
             try {
-                dbWrk.creer(new Personne(nom, prenom, dateNai, num, rue, npa, localite, actif, salaire, date));
+                Personne p = new Personne();
+                p.setNom(nom);
+                p.setPrenom(prenom);
+                p.setDateNaissance(dateNai);
+                p.setNoRue(num);
+                p.setRue(rue);
+                p.setNpa(npa);
+                p.setLocalite(localite);
+                p.setActif(actif);
+                p.setSalaire(salaire);
+                dbWrk.creer(p);
             } catch (MyDBException ex) {
                 JfxPopup.displayError("ERREUR", "Une erreur s'est produite", ex.getMessage());
             }
@@ -190,7 +198,20 @@ public class MainCtrl implements Initializable {
         } else {
 
             try {
-                dbWrk.modifier(new Personne(pk, nom, prenom, dateNai, num, rue, npa, localite, actif, salaire, date));
+                int pk = Integer.valueOf(txtPK.getText());
+                Personne p = manPers.courantPersonne();
+                p.setPkPers(pk);
+                p.setNom(nom);
+                p.setPrenom(prenom);
+                p.setDateNaissance(dateNai);
+                p.setNoRue(num);
+                p.setRue(rue);
+                p.setNpa(npa);
+                p.setLocalite(localite);
+                p.setActif(actif);
+                p.setSalaire(salaire);
+                
+                dbWrk.modifier(p);
             } catch (MyDBException ex) {
                 JfxPopup.displayError("ERREUR", "Une erreur s'est produite", ex.getMessage());
             }
