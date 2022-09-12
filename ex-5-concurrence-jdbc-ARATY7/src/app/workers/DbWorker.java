@@ -88,7 +88,7 @@ public class DbWorker implements DbWorkerItf {
                     String ville = rs.getString("Ville");
                     boolean actif = rs.getByte("Actif") == 1;
                     Double salaire = rs.getDouble("Salaire");
-                    java.util.Date dateModif = rs.getTimestamp("date_modif");   
+                    java.util.Date dateModif = rs.getTimestamp("date_modif");
                     listePersonnes.add(new Personne(pk, nom, prenom, dateNaissance, noRue, rue, NPA, ville, actif, salaire, dateModif));
                 } catch (SQLException ex) {
                     throw new MyDBException(SystemLib.getFullMethodName(), ex.getMessage());
@@ -192,12 +192,6 @@ public class DbWorker implements DbWorkerItf {
 
             dbConnexion.setAutoCommit(false);
             Date date = selectForUpdate(p.getPkPers());
-
-            System.out.println(date);
-            System.out.println(date.getTime());
-            System.out.println(p.getDateModif());
-            System.out.println(p.getDateModif().getTime());
-//            Date dateRecu = new Date(p.getDateModif().getTime());
 
             if (date.getTime() == p.getDateModif().getTime()) {
 
